@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}User Role Management - CRMS Admin{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding-bottom: 0;">
+  <div>
+    <h1 class="card-title" style="font-size: 1.6rem;">Personnel Access &amp; Role Management</h1>
+    <p class="card-subtitle">Authorize personnel accounts, promote officers, or assign administrator credentials.</p>
+  </div>
+</div>
+
+<section class="card" style="margin-top: 1.5rem; padding: 0; overflow: hidden;">
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Personnel Name</th>
+          <th>Email Address</th>
+          <th>Department / Designation</th>
+          <th>Registered Date</th>
+          <th>Current Role</th>
+          <th style="text-align: right; padding-right: 1.5rem;">Update Authorization</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+          <tr>
+            <td><strong>{{ u.full_name }}</strong></td>
+            <td><code>{{ u.email }}</code></td>
+            <td>{{ u.department }}</td>
+            <td>{{ u.created_at | format_date }}</td>
+            <td>
+              <span class="role-badge role-{{ u.role|lower }}">
+                {{ u.role }}
+              </span>
+            </td>
+            <td style="text-align: right; padding-right: 1.5rem;">
+              <form action="{{ url_for('update_user_role', user_id=u._id) }}" method="POST" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                
+                <select name="role" class="form-select" style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.85rem;">
+                  <option value="Viewer" {% if u.role == 'Viewer' %}selected{% endif %}>Viewer</option>
+                  <option value="Officer" {% if u.role == 'Officer' %}selected{% endif %}>Officer</option>
+                  <option value="Admin" {% if u.role == 'Admin' %}selected{% endif %}>Admin</option>
+                </select>
+
+                <button type="submit" class="btn btn-navy btn-sm" id="btn-role-{{ u._id }}">
+                  Apply
+                </button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  
+  <div style="padding: 0.85rem 1.25rem; font-size: 0.82rem; color: var(--slate-500); background-color: var(--slate-50); border-top: 1px solid var(--slate-200);">
+    Total Registered Personnel: <strong>{{ users|length }}</strong>
+  </div>
+</section>
+{% endblock %}

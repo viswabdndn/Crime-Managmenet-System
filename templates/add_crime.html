@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Register New Crime Record - CRMS{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 960px; margin: 0 auto;">
+  <div class="card-header">
+    <div>
+      <h1 class="card-title">Register New Crime Incident Record</h1>
+      <p class="card-subtitle">Complete all required fields to generate a case file in MongoDB.</p>
+    </div>
+    <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary btn-sm">&larr; Back to Records</a>
+  </div>
+
+  <form action="{{ url_for('add_crime') }}" method="POST" id="form-add-crime">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Section 1: Incident Specifics -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin-bottom: 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      1. Incident Overview
+    </h3>
+
+    <div class="form-group">
+      <label for="title" class="form-label">Crime Incident Title <span class="required">*</span></label>
+      <input 
+        type="text" 
+        id="title" 
+        name="title" 
+        class="form-control" 
+        placeholder="Brief descriptive title (e.g., Commercial Burglary at South Gate Market)" 
+        value="{{ request.form.get('title', '') }}"
+        required
+      >
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="crime_type" class="form-label">Crime Classification <span class="required">*</span></label>
+        <select id="crime_type" name="crime_type" class="form-select" required>
+          <option value="">-- Select Offense Category --</option>
+          {% for ctype in crime_types %}
+            <option value="{{ ctype }}" {% if request.form.get('crime_type') == ctype %}selected{% endif %}>
+              {{ ctype }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="location" class="form-label">Incident Location <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="location" 
+          name="location" 
+          class="form-control" 
+          placeholder="Specific street address, campus block, or landmark" 
+          value="{{ request.form.get('location', '') }}"
+          required
+        >
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="date_of_incident" class="form-label">Date of Incident <span class="required">*</span></label>
+        <input 
+          type="date" 
+          id="date_of_incident" 
+          name="date_of_incident" 
+          class="form-control" 
+          value="{{ request.form.get('date_of_incident', today) }}"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="date_reported" class="form-label">Date Reported to Police <span class="required">*</span></label>
+        <input 
+          type="date" 
+          id="date_reported" 
+          name="date_reported" 
+          class="form-control" 
+          value="{{ request.form.get('date_reported', today) }}"
+          required
+        >
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="description" class="form-label">Comprehensive Incident Description</label>
+      <textarea 
+        id="description" 
+        name="description" 
+        class="form-control" 
+        rows="4" 
+        placeholder="Describe events, modus operandi, physical evidence noted, point of entry, or missing property..."
+      >{{ request.form.get('description', '') }}</textarea>
+    </div>
+
+    <!-- Section 2: Case Officer & Status -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin: 1.5rem 0 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      2. Department Assignment &amp; Case Status
+    </h3>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="investigating_officer" class="form-label">Investigating Officer <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="investigating_officer" 
+          name="investigating_officer" 
+          class="form-control" 
+          placeholder="e.g. Insp. Vikram Rathore (Badge #4092)" 
+          value="{{ request.form.get('investigating_officer', session.get('user_name', '')) }}"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="case_status" class="form-label">Current Case Status <span class="required">*</span></label>
+        <select id="case_status" name="case_status" class="form-select" required>
+          {% for cstatus in case_statuses %}
+            <option value="{{ cstatus }}" {% if request.form.get('case_status', 'Reported') == cstatus %}selected{% endif %}>
+              {{ cstatus }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Section 3: Persons of Interest & Victims (Fictional academic data) -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin: 1.5rem 0 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      3. Associated Persons (Fictional Sample Details)
+    </h3>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="victim_details" class="form-label">Complainant / Victim Information</label>
+        <textarea 
+          id="victim_details" 
+          name="victim_details" 
+          class="form-control" 
+          rows="3" 
+          placeholder="Fictional name, contact identifier, statement summary..."
+        >{{ request.form.get('victim_details', '') }}</textarea>
+        <div class="form-text">Academic notice: Use only fictional sample identities.</div>
+      </div>
+
+      <div class="form-group">
+        <label for="suspect_details" class="form-label">Suspect Information (If Identified or Reported)</label>
+        <textarea 
+          id="suspect_details" 
+          name="suspect_details" 
+          class="form-control" 
+          rows="3" 
+          placeholder="Physical description, age estimate, known aliases, CCTV identifiers..."
+        >{{ request.form.get('suspect_details', '') }}</textarea>
+      </div>
+    </div>
+
+    <!-- Section 4: Investigation Notes -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin: 1.5rem 0 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      4. Investigative Logs &amp; Progress Notes
+    </h3>
+
+    <div class="form-group">
+      <label for="investigation_notes" class="form-label">Investigation Progress Log</label>
+      <textarea 
+        id="investigation_notes" 
+        name="investigation_notes" 
+        class="form-control" 
+        rows="4" 
+        placeholder="Record ongoing inquiries, forensic laboratory submissions, interrogations, or evidentiary findings..."
+      >{{ request.form.get('investigation_notes', '') }}</textarea>
+    </div>
+
+    <!-- Submit buttons -->
+    <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 2rem; border-top: 1px solid var(--slate-200); padding-top: 1.25rem;">
+      <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary" id="btn-cancel-add">Cancel</a>
+      <button type="submit" class="btn btn-primary" id="btn-submit-add">Save Crime Record to MongoDB</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

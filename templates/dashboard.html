@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Crime Statistics & Analytics{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding-bottom: 0;">
+  <div>
+    <h1 class="card-title" style="font-size: 1.6rem;">Department Crime Intelligence Dashboard</h1>
+    <p class="card-subtitle">Real-time case metrics and aggregate analytics from the central MongoDB document store.</p>
+  </div>
+  <div style="display: flex; gap: 0.5rem;">
+    {% if session.get('role') in ['Admin', 'Officer'] %}
+      <a href="{{ url_for('add_crime') }}" class="btn btn-primary" id="btn-dashboard-add">
+        + Log New Crime
+      </a>
+    {% endif %}
+    <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary" id="btn-dashboard-browse">
+      Browse All Records
+    </a>
+  </div>
+</div>
+
+<!-- Primary Metrics Cards -->
+<section class="stats-grid" style="margin-top: 1.5rem;">
+  <div class="stat-card stat-navy">
+    <div class="stat-label">Total Crime Records</div>
+    <div class="stat-value" id="stat-total">{{ stats.total_crimes }}</div>
+    <div class="stat-desc">Cumulative case files in system</div>
+  </div>
+
+  <div class="stat-card stat-blue">
+    <div class="stat-label">Newly Reported</div>
+    <div class="stat-value" id="stat-reported">{{ stats.reported_cases }}</div>
+    <div class="stat-desc">Awaiting formal investigation</div>
+  </div>
+
+  <div class="stat-card stat-amber">
+    <div class="stat-label">Active Investigations</div>
+    <div class="stat-value" id="stat-active">{{ stats.active_cases }}</div>
+    <div class="stat-desc">Inquiries, evidence &amp; charges</div>
+  </div>
+
+  <div class="stat-card stat-green">
+    <div class="stat-label">Resolved / Closed</div>
+    <div class="stat-value" id="stat-closed">{{ stats.closed_cases }}</div>
+    <div class="stat-desc">Finalized case dispositions</div>
+  </div>
+
+  <div class="stat-card stat-red">
+    <div class="stat-label">Unsolved / Cold</div>
+    <div class="stat-value" id="stat-unsolved">{{ stats.unsolved_cases }}</div>
+    <div class="stat-desc">Pending actionable leads</div>
+  </div>
+</section>
+
+<!-- Aggregations Grid: Crime Type & Case Status -->
+<section class="dashboard-grid-2">
+  <!-- Grouped by Crime Type -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Crime Records by Category</h2>
+        <p class="card-subtitle">Distribution across predefined criminal offense classifications</p>
+      </div>
+    </div>
+
+    {% if stats.type_breakdown %}
+      <div class="breakdown-list">
+        {% for item in stats.type_breakdown %}
+          {% set pct = ((item.count / stats.total_crimes) * 100) | round if stats.total_crimes > 0 else 0 %}
+          <div class="breakdown-item">
+            <div class="breakdown-header">
+              <span>{{ item._id or 'Uncategorized' }}</span>
+              <span><strong>{{ item.count }}</strong> ({{ pct }}%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: {{ pct }}%;"></div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="form-text">No category statistics available yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Grouped by Case Status -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Cases Grouped by Status</h2>
+        <p class="card-subtitle">Investigation pipeline and resolution stages</p>
+      </div>
+    </div>
+
+    {% if stats.status_breakdown %}
+      <div class="breakdown-list">
+        {% for item in stats.status_breakdown %}
+          {% set pct = ((item.count / stats.total_crimes) * 100) | round if stats.total_crimes > 0 else 0 %}
+          <div class="breakdown-item">
+            <div class="breakdown-header">
+              <span>
+                <span class="status-pill status-{{ item._id|replace(' ', '-') }}">{{ item._id }}</span>
+              </span>
+              <span><strong>{{ item.count }}</strong> ({{ pct }}%)</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" style="width: {{ pct }}%;"></div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="form-text">No status statistics available yet.</p>
+    {% endif %}
+  </div>
+</section>
+
+<!-- Recently Reported & Updated Tables -->
+<section class="dashboard-grid-2">
+  <!-- Recent Reported -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Recently Reported Incidents</h2>
+        <p class="card-subtitle">Latest 5 crime complaints logged into the database</p>
+      </div>
+    </div>
+
+    {% if stats.recent_reported %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Case #</th>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for crime in stats.recent_reported %}
+              <tr>
+                <td><span class="case-id-badge">{{ crime.case_number }}</span></td>
+                <td><strong>{{ crime.title }}</strong></td>
+                <td><span class="category-tag">{{ crime.crime_type }}</span></td>
+                <td>
+                  <span class="status-pill status-{{ crime.case_status|replace(' ', '-') }}">
+                    {{ crime.case_status }}
+                  </span>
+                </td>
+                <td>
+                  <a href="{{ url_for('crime_details', crime_id=crime._id) }}" class="btn btn-secondary btn-sm">
+                    View
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding: 1.5rem;">
+        <p>No crime records registered yet.</p>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Updated -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Recently Updated Investigations</h2>
+        <p class="card-subtitle">Case dossiers modified or advanced most recently</p>
+      </div>
+    </div>
+
+    {% if stats.recent_updated %}
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Case #</th>
+              <th>Title</th>
+              <th>Officer</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for crime in stats.recent_updated %}
+              <tr>
+                <td><span class="case-id-badge">{{ crime.case_number }}</span></td>
+                <td><strong>{{ crime.title }}</strong></td>
+                <td>{{ crime.investigating_officer or 'Unassigned' }}</td>
+                <td>
+                  <span class="status-pill status-{{ crime.case_status|replace(' ', '-') }}">
+                    {{ crime.case_status }}
+                  </span>
+                </td>
+                <td>
+                  <a href="{{ url_for('crime_details', crime_id=crime._id) }}" class="btn btn-secondary btn-sm">
+                    View
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding: 1.5rem;">
+        <p>No case updates recorded yet.</p>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

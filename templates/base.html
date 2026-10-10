@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Crime Record Management System - College Laboratory Project">
+  <title>{% block title %}Crime Record Management System{% endblock %} | CRMS</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-container">
+      <a href="{{ url_for('index') }}" class="brand-link" id="brand-link">
+        <div class="brand-badge">CRMS</div>
+        <div class="brand-title">
+          <span>Crime Record Management</span>
+          <span>Civic Law &amp; Order Division</span>
+        </div>
+      </a>
+
+      <nav>
+        <ul class="nav-links">
+          <li>
+            <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" id="nav-home">
+              Home
+            </a>
+          </li>
+          {% if session.get('user_id') %}
+            <li>
+              <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" id="nav-dashboard">
+                Dashboard
+              </a>
+            </li>
+            <li>
+              <a href="{{ url_for('view_crimes') }}" class="nav-link {% if request.endpoint in ['view_crimes', 'crime_details', 'edit_crime'] %}active{% endif %}" id="nav-crimes">
+                Crime Records
+              </a>
+            </li>
+            {% if session.get('role') in ['Admin', 'Officer'] %}
+              <li>
+                <a href="{{ url_for('add_crime') }}" class="nav-link {% if request.endpoint == 'add_crime' %}active{% endif %}" id="nav-add-crime">
+                  + Add Record
+                </a>
+              </li>
+            {% endif %}
+            {% if session.get('role') == 'Admin' %}
+              <li>
+                <a href="{{ url_for('admin_users') }}" class="nav-link {% if request.endpoint == 'admin_users' %}active{% endif %}" id="nav-admin-users">
+                  User Roles
+                </a>
+              </li>
+            {% endif %}
+          {% endif %}
+        </ul>
+      </nav>
+
+      <div class="nav-user-actions">
+        {% if session.get('user_id') %}
+          <a href="{{ url_for('profile') }}" class="user-tag" title="View Profile" id="nav-profile">
+            <span>{{ session.get('user_name', 'User') }}</span>
+            <span class="role-badge role-{{ session.get('role', 'viewer')|lower }}">
+              {{ session.get('role', 'Viewer') }}
+            </span>
+          </a>
+          <form action="{{ url_for('logout') }}" method="POST" style="display: inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-secondary btn-sm" id="btn-logout" title="Log Out">
+              Log Out
+            </button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('login') }}" class="btn btn-secondary btn-sm" id="btn-nav-login">Sign In</a>
+          <a href="{{ url_for('register') }}" class="btn btn-primary btn-sm" id="btn-nav-register">Register</a>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+            <span>{{ message }}</span>
+            <button type="button" class="alert-close" onclick="this.parentElement.style.display='none';">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <!-- Main View Container -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div>
+        <strong>Crime Record Management System (CRMS)</strong> &bull; College Laboratory Academic Project
+      </div>
+      <div class="footer-academic-notice">
+        Academic Demonstration &bull; Fictional Data Only &bull; Built with Flask &amp; MongoDB
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

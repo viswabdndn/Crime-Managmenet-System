@@ -1,0 +1,5 @@
+Flask
+pymongo[srv]
+python-dotenv
+Werkzeug
+dnspython

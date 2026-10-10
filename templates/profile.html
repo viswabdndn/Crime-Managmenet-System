@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile - CRMS{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h1 class="card-title">Personnel Profile &amp; Settings</h1>
+        <p class="card-subtitle">Manage personal department details and account security credentials.</p>
+      </div>
+      <span class="role-badge role-{{ user.role|lower }}" style="font-size: 0.85rem; padding: 0.35rem 0.8rem;">
+        Role: {{ user.role }}
+      </span>
+    </div>
+
+    <!-- Read-Only Account Security Metadata -->
+    <div class="dossier-meta-grid" style="border: 1px solid var(--slate-200); border-radius: var(--radius-sm); margin-bottom: 1.75rem;">
+      <div class="meta-item">
+        <span class="meta-label">Department Email</span>
+        <span class="meta-value">{{ user.email }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">System Role</span>
+        <span class="meta-value">{{ user.role }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Account Created</span>
+        <span class="meta-value">{{ user.created_at | format_datetime }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Last Updated</span>
+        <span class="meta-value">{{ user.updated_at | format_datetime }}</span>
+      </div>
+    </div>
+
+    <form action="{{ url_for('profile') }}" method="POST" id="form-profile">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <h3 style="font-size: 1.05rem; color: var(--navy-800); margin-bottom: 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+        Personnel Details
+      </h3>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label for="full_name" class="form-label">Full Name <span class="required">*</span></label>
+          <input 
+            type="text" 
+            id="full_name" 
+            name="full_name" 
+            class="form-control" 
+            value="{{ user.full_name }}" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="department" class="form-label">Department / Designation <span class="required">*</span></label>
+          <input 
+            type="text" 
+            id="department" 
+            name="department" 
+            class="form-control" 
+            value="{{ user.department }}" 
+            required
+          >
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input 
+          type="email" 
+          class="form-control" 
+          value="{{ user.email }}" 
+          disabled 
+          style="background-color: var(--slate-100); color: var(--slate-500); cursor: not-allowed;"
+        >
+        <div class="form-text">Department email is permanently bound to this personnel account.</div>
+      </div>
+
+      <h3 style="font-size: 1.05rem; color: var(--navy-800); margin: 1.75rem 0 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+        Change Password (Optional)
+      </h3>
+
+      <div class="form-grid-2">
+        <div class="form-group">
+          <label for="new_password" class="form-label">New Password</label>
+          <input 
+            type="password" 
+            id="new_password" 
+            name="new_password" 
+            class="form-control" 
+            placeholder="Leave blank to keep current password"
+          >
+          <div class="form-text">Minimum 6 characters</div>
+        </div>
+
+        <div class="form-group">
+          <label for="confirm_password" class="form-label">Confirm New Password</label>
+          <input 
+            type="password" 
+            id="confirm_password" 
+            name="confirm_password" 
+            class="form-control" 
+            placeholder="Repeat new password"
+          >
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 1.75rem; border-top: 1px solid var(--slate-200); padding-top: 1.25rem;">
+        <button type="submit" class="btn btn-primary" id="btn-save-profile">
+          Save Profile Updates
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

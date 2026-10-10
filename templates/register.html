@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Register Personnel Account - CRMS{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="card">
+    <div class="auth-header">
+      <div class="auth-icon">&#128100;</div>
+      <h1>Account Registration</h1>
+      <p>Register as a department member or viewer to access records.</p>
+    </div>
+
+    <div class="alert alert-info" style="font-size: 0.85rem; margin-bottom: 1.25rem;">
+      <strong>Note:</strong> Newly registered accounts are assigned the <strong>Viewer</strong> role by default. An Administrator must authorize accounts to allow Officer or Admin privileges.
+    </div>
+
+    <form action="{{ url_for('register') }}" method="POST" id="form-register">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label for="full_name" class="form-label">Full Name <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="full_name" 
+          name="full_name" 
+          class="form-control" 
+          placeholder="e.g. Inspector Rajesh Kumar" 
+          value="{{ request.form.get('full_name', '') }}"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="email" class="form-label">Department Email <span class="required">*</span></label>
+        <input 
+          type="email" 
+          id="email" 
+          name="email" 
+          class="form-control" 
+          placeholder="rajesh.kumar@department.local" 
+          value="{{ request.form.get('email', '') }}"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="department" class="form-label">Department / Designation <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="department" 
+          name="department" 
+          class="form-control" 
+          placeholder="e.g. Cybercrime Cell, Patrol Division, Forensics" 
+          value="{{ request.form.get('department', '') }}"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">Password <span class="required">*</span></label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          class="form-control" 
+          placeholder="Minimum 6 characters" 
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="confirm_password" class="form-label">Confirm Password <span class="required">*</span></label>
+        <input 
+          type="password" 
+          id="confirm_password" 
+          name="confirm_password" 
+          class="form-control" 
+          placeholder="Re-enter password" 
+          required
+        >
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" id="btn-submit-register">
+        Complete Registration
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Already registered? 
+      <a href="{{ url_for('login') }}" id="link-to-login">Sign in here</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

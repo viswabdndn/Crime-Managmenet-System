@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Crime Records Archive - CRMS{% endblock %}
+
+{% block content %}
+<div class="card-header" style="border: none; padding-bottom: 0;">
+  <div>
+    <h1 class="card-title" style="font-size: 1.6rem;">Digital Crime Records Repository</h1>
+    <p class="card-subtitle">Official log of registered criminal complaints, investigative dossiers, and incident files.</p>
+  </div>
+  {% if session.get('role') in ['Admin', 'Officer'] %}
+    <div>
+      <a href="{{ url_for('add_crime') }}" class="btn btn-primary" id="btn-add-record">
+        + Register New Crime Record
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Search & Filtering Card -->
+<section class="filter-card" style="margin-top: 1.5rem;">
+  <form method="GET" action="{{ url_for('view_crimes') }}" id="filter-form">
+    <div class="filter-grid">
+      <!-- General Query -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="filter-q" class="form-label">Keyword Search</label>
+        <input 
+          type="text" 
+          id="filter-q" 
+          name="q" 
+          class="form-control" 
+          placeholder="Title, description, officer..." 
+          value="{{ request.args.get('q', '') }}"
+        >
+      </div>
+
+      <!-- Case Number -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="filter-case-number" class="form-label">Case Number</label>
+        <input 
+          type="text" 
+          id="filter-case-number" 
+          name="case_number" 
+          class="form-control" 
+          placeholder="e.g. CRM-2026-0001" 
+          value="{{ request.args.get('case_number', '') }}"
+        >
+      </div>
+
+      <!-- Crime Type -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="filter-type" class="form-label">Crime Category</label>
+        <select id="filter-type" name="crime_type" class="form-select">
+          <option value="">-- All Categories --</option>
+          {% for ctype in crime_types %}
+            <option value="{{ ctype }}" {% if request.args.get('crime_type') == ctype %}selected{% endif %}>
+              {{ ctype }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Case Status -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="filter-status" class="form-label">Case Status</label>
+        <select id="filter-status" name="case_status" class="form-select">
+          <option value="">-- All Statuses --</option>
+          {% for cstatus in case_statuses %}
+            <option value="{{ cstatus }}" {% if request.args.get('case_status') == cstatus %}selected{% endif %}>
+              {{ cstatus }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Location -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="filter-loc" class="form-label">Location</label>
+        <input 
+          type="text" 
+          id="filter-loc" 
+          name="location" 
+          class="form-control" 
+          placeholder="e.g. Campus East, Quad" 
+          value="{{ request.args.get('location', '') }}"
+        >
+      </div>
+
+      <!-- Date Range: From -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="filter-date-from" class="form-label">Reported From</label>
+        <input 
+          type="date" 
+          id="filter-date-from" 
+          name="date_from" 
+          class="form-control" 
+          value="{{ request.args.get('date_from', '') }}"
+        >
+      </div>
+
+      <!-- Date Range: To -->
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="filter-date-to" class="form-label">Reported To</label>
+        <input 
+          type="date" 
+          id="filter-date-to" 
+          name="date_to" 
+          class="form-control" 
+          value="{{ request.args.get('date_to', '') }}"
+        >
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="filter-actions" style="margin-top: auto;">
+        <button type="submit" class="btn btn-navy" id="btn-apply-filters">
+          Apply Filters
+        </button>
+        <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary" id="btn-clear-filters" title="Reset all filters">
+          Clear
+        </a>
+      </div>
+    </div>
+  </form>
+</section>
+
+<!-- Crime Records Table -->
+<section class="card" style="padding: 0; overflow: hidden;">
+  {% if crimes and crimes|length > 0 %}
+    <div class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Case Number</th>
+            <th>Crime Title</th>
+            <th>Category</th>
+            <th>Incident Location</th>
+            <th>Date Reported</th>
+            <th>Investigating Officer</th>
+            <th>Status</th>
+            <th style="text-align: right; padding-right: 1.25rem;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for crime in crimes %}
+            <tr>
+              <td>
+                <span class="case-id-badge">{{ crime.case_number }}</span>
+              </td>
+              <td>
+                <strong>{{ crime.title }}</strong>
+              </td>
+              <td>
+                <span class="category-tag">{{ crime.crime_type }}</span>
+              </td>
+              <td>{{ crime.location }}</td>
+              <td>{{ crime.date_reported | format_date }}</td>
+              <td>{{ crime.investigating_officer }}</td>
+              <td>
+                <span class="status-pill status-{{ crime.case_status|replace(' ', '-') }}">
+                  {{ crime.case_status }}
+                </span>
+              </td>
+              <td style="text-align: right; padding-right: 1.25rem; white-space: nowrap;">
+                <!-- View (available to all) -->
+                <a href="{{ url_for('crime_details', crime_id=crime._id) }}" class="btn btn-secondary btn-sm" id="view-crime-{{ crime.case_number }}">
+                  View
+                </a>
+
+                <!-- Edit (Admin or Officer) -->
+                {% if session.get('role') in ['Admin', 'Officer'] %}
+                  <a href="{{ url_for('edit_crime', crime_id=crime._id) }}" class="btn btn-primary btn-sm" id="edit-crime-{{ crime.case_number }}">
+                    Edit
+                  </a>
+                {% endif %}
+
+                <!-- Delete (Admin only with POST) -->
+                {% if session.get('role') == 'Admin' %}
+                  <form 
+                    action="{{ url_for('delete_crime', crime_id=crime._id) }}" 
+                    method="POST" 
+                    style="display: inline;" 
+                    onsubmit="return confirm('Are you sure you want to permanently delete crime record {{ crime.case_number }}? This operation cannot be undone.');"
+                  >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger btn-sm" id="delete-crime-{{ crime.case_number }}">
+                      Delete
+                    </button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    
+    <div style="padding: 0.85rem 1.25rem; font-size: 0.82rem; color: var(--slate-500); background-color: var(--slate-50); border-top: 1px solid var(--slate-200); display: flex; justify-content: space-between;">
+      <span>Showing <strong>{{ crimes|length }}</strong> matching records</span>
+      <span>MongoDB Collection: <code>crimes</code></span>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <div class="empty-state-icon">&#128194;</div>
+      <h3>No Crime Records Found</h3>
+      <p>There are no incident records matching your current filter criteria or the database is currently empty.</p>
+      <div style="display: flex; gap: 0.5rem; justify-content: center;">
+        <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary">Clear Search Filters</a>
+        {% if session.get('role') in ['Admin', 'Officer'] %}
+          <a href="{{ url_for('add_crime') }}" class="btn btn-primary">+ Add New Crime</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

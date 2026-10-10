@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Digital Case Records Portal{% endblock %}
+
+{% block content %}
+<section class="hero-banner">
+  <div class="hero-content">
+    <div class="hero-badge">Academic Laboratory Demonstration &bull; v1.0</div>
+    <h1 class="hero-title">Digital Crime Record Management System</h1>
+    <p class="hero-desc">
+      A secure, role-restricted web platform designed for law enforcement departments and civic agencies to log, investigate, track, and analyze incident records through an organized MongoDB document store.
+    </p>
+    <div class="hero-actions">
+      {% if session.get('user_id') %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary" id="hero-btn-dashboard">
+          Open Crime Dashboard &rarr;
+        </a>
+        <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary" id="hero-btn-crimes">
+          Browse Crime Records
+        </a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="btn btn-primary" id="hero-btn-login">
+          Sign In to Access Records &rarr;
+        </a>
+        <a href="{{ url_for('register') }}" class="btn btn-secondary" id="hero-btn-register">
+          Create Department Account
+        </a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<!-- System Highlights Grid -->
+<section class="features-grid">
+  <div class="feature-card">
+    <div class="feature-icon">&#128221;</div>
+    <h3>Comprehensive Case Dossiers</h3>
+    <p>
+      Maintain structured records with auto-generated case numbers, incident location coordinates, timeline notes, suspect descriptions, and fictional victim statements.
+    </p>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-icon">&#128274;</div>
+    <h3>Role-Based Access Control</h3>
+    <p>
+      Server-enforced authorization levels separating <strong>Admin</strong> (full management), <strong>Officer</strong> (record updates), and <strong>Viewer</strong> (read-only audit).
+    </p>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-icon">&#128269;</div>
+    <h3>Multi-Criteria Search</h3>
+    <p>
+      Quickly locate files by incident type, case status, date windows, investigating officer name, or keyword query using indexed MongoDB filters.
+    </p>
+  </div>
+
+  <div class="feature-card">
+    <div class="feature-icon">&#128202;</div>
+    <h3>Analytical Crime Statistics</h3>
+    <p>
+      Real-time MongoDB aggregation pipelines compile status breakdowns, active investigations, solved rates, and recent department activity without external client libraries.
+    </p>
+  </div>
+</section>
+
+<!-- Academic Context Card -->
+<section class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Laboratory Project Specifications</h2>
+      <p class="card-subtitle">Technical architecture and development standards</p>
+    </div>
+  </div>
+  <div class="form-grid-3">
+    <div>
+      <div class="meta-label">Backend Architecture</div>
+      <div class="meta-value">Python 3.11+ &bull; Flask &bull; Jinja2</div>
+      <p class="form-text">Single monolithic Flask server rendering server-side templates with session protection.</p>
+    </div>
+    <div>
+      <div class="meta-label">Primary Database</div>
+      <div class="meta-value">MongoDB &bull; PyMongo</div>
+      <p class="form-text">Collections for users and crimes with unique compound indexes and aggregation pipelines.</p>
+    </div>
+    <div>
+      <div class="meta-label">Design &amp; Styling</div>
+      <div class="meta-value">Pure Custom CSS &bull; Zero Frameworks</div>
+      <p class="form-text">Tailored responsive styles, no Bootstrap, no Tailwind, and zero external frontend servers.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Case Dossier {{ crime.case_number }} - CRMS{% endblock %}
+
+{% block content %}
+<div style="max-width: 1000px; margin: 0 auto;">
+  
+  <!-- Dossier Action Header -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary btn-sm" id="btn-back-crimes">
+      &larr; Back to Crime Repository
+    </a>
+    <div style="display: flex; gap: 0.5rem;">
+      <button onclick="window.print();" class="btn btn-secondary btn-sm" id="btn-print-case">
+        &#128424; Print Case File
+      </button>
+      {% if session.get('role') in ['Admin', 'Officer'] %}
+        <a href="{{ url_for('edit_crime', crime_id=crime._id) }}" class="btn btn-primary btn-sm" id="btn-details-edit">
+          Edit Record
+        </a>
+      {% endif %}
+      {% if session.get('role') == 'Admin' %}
+        <form 
+          action="{{ url_for('delete_crime', crime_id=crime._id) }}" 
+          method="POST" 
+          style="display: inline;" 
+          onsubmit="return confirm('Permanently expunge case record {{ crime.case_number }}? This operation is strictly irreversible.');"
+        >
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger btn-sm" id="btn-details-delete">
+            Delete Record
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Dossier Case File Banner -->
+  <div class="dossier-header">
+    <div class="dossier-header-info">
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span class="case-id-badge" style="background-color: var(--teal-600); color: var(--white); border-color: var(--teal-400); font-size: 0.95rem;">
+          {{ crime.case_number }}
+        </span>
+        <span class="status-pill status-{{ crime.case_status|replace(' ', '-') }}">
+          {{ crime.case_status }}
+        </span>
+      </div>
+      <h1>{{ crime.title }}</h1>
+    </div>
+    <div style="text-align: right;">
+      <span class="category-tag" style="background: rgba(255,255,255,0.15); color: var(--white); border-color: rgba(255,255,255,0.3); font-size: 0.85rem;">
+        {{ crime.crime_type }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Dossier Primary Metadata Grid -->
+  <div class="dossier-meta-grid">
+    <div class="meta-item">
+      <span class="meta-label">Incident Location</span>
+      <span class="meta-value">{{ crime.location }}</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Date of Incident</span>
+      <span class="meta-value">{{ crime.date_of_incident | format_date }}</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Date Reported to Police</span>
+      <span class="meta-value">{{ crime.date_reported | format_date }}</span>
+    </div>
+    <div class="meta-item">
+      <span class="meta-label">Investigating Officer</span>
+      <span class="meta-value">{{ crime.investigating_officer or 'Unassigned' }}</span>
+    </div>
+  </div>
+
+  <!-- Dossier Main Information Body -->
+  <div class="dossier-body">
+    <!-- Incident Description -->
+    <div class="dossier-section">
+      <h3 class="dossier-section-title">&#128220; Incident Details &amp; Narrative</h3>
+      <div class="dossier-text-box">
+        {{ crime.description if crime.description else 'No incident description filed.' }}
+      </div>
+    </div>
+
+    <!-- Associated Persons -->
+    <div class="form-grid-2 dossier-section">
+      <div>
+        <h3 class="dossier-section-title">&#128100; Complainant / Victim Data</h3>
+        <div class="dossier-text-box" style="min-height: 100px;">
+          {{ crime.victim_details if crime.victim_details else 'No victim information logged or confidential.' }}
+        </div>
+      </div>
+      <div>
+        <h3 class="dossier-section-title">&#128065; Suspect Details</h3>
+        <div class="dossier-text-box" style="min-height: 100px;">
+          {{ crime.suspect_details if crime.suspect_details else 'No suspect identified or recorded at this stage.' }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Investigation Progress Notes -->
+    <div class="dossier-section">
+      <h3 class="dossier-section-title">&#128269; Investigation Progress &amp; Evidence Log</h3>
+      <div class="dossier-text-box">
+        {{ crime.investigation_notes if crime.investigation_notes else 'No investigative progress notes added.' }}
+      </div>
+    </div>
+
+    <!-- Record Metadata Footer -->
+    <div style="margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--slate-200); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; font-size: 0.8rem; color: var(--slate-500);">
+      <div>
+        <span>Logged into Database: <strong>{{ crime.created_at | format_datetime }}</strong></span>
+        {% if crime.created_by %}
+          &bull; <span>Officer ID: <code>{{ crime.created_by }}</code></span>
+        {% endif %}
+      </div>
+      <div>
+        <span>Last Case Revision: <strong>{{ crime.updated_at | format_datetime }}</strong></span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Case {{ crime.case_number }} - CRMS{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 960px; margin: 0 auto;">
+  <div class="card-header">
+    <div>
+      <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem;">
+        <span class="case-id-badge" style="font-size: 0.95rem;">{{ crime.case_number }}</span>
+        <span class="status-pill status-{{ crime.case_status|replace(' ', '-') }}">{{ crime.case_status }}</span>
+      </div>
+      <h1 class="card-title">Modify Case Record</h1>
+      <p class="card-subtitle">Original registration timestamp and case number are preserved automatically.</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+      <a href="{{ url_for('crime_details', crime_id=crime._id) }}" class="btn btn-secondary btn-sm">&larr; View Dossier</a>
+      <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary btn-sm">All Records</a>
+    </div>
+  </div>
+
+  <form action="{{ url_for('edit_crime', crime_id=crime._id) }}" method="POST" id="form-edit-crime">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Read-only Case File Metadata -->
+    <div class="dossier-meta-grid" style="border: 1px solid var(--slate-200); border-radius: var(--radius-sm); margin-bottom: 1.5rem;">
+      <div class="meta-item">
+        <span class="meta-label">Unique Case Number</span>
+        <span class="meta-value">{{ crime.case_number }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Initial Registration Date</span>
+        <span class="meta-value">{{ crime.created_at | format_datetime }}</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Last Modified Date</span>
+        <span class="meta-value">{{ crime.updated_at | format_datetime }}</span>
+      </div>
+    </div>
+
+    <!-- Section 1: Incident Specifics -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin-bottom: 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      1. Incident Details
+    </h3>
+
+    <div class="form-group">
+      <label for="title" class="form-label">Crime Incident Title <span class="required">*</span></label>
+      <input 
+        type="text" 
+        id="title" 
+        name="title" 
+        class="form-control" 
+        value="{{ crime.title }}"
+        required
+      >
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="crime_type" class="form-label">Crime Classification <span class="required">*</span></label>
+        <select id="crime_type" name="crime_type" class="form-select" required>
+          {% for ctype in crime_types %}
+            <option value="{{ ctype }}" {% if crime.crime_type == ctype %}selected{% endif %}>
+              {{ ctype }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="location" class="form-label">Incident Location <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="location" 
+          name="location" 
+          class="form-control" 
+          value="{{ crime.location }}"
+          required
+        >
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="date_of_incident" class="form-label">Date of Incident <span class="required">*</span></label>
+        <input 
+          type="date" 
+          id="date_of_incident" 
+          name="date_of_incident" 
+          class="form-control" 
+          value="{{ crime.date_of_incident.strftime('%Y-%m-%d') if crime.date_of_incident else '' }}"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="date_reported" class="form-label">Date Reported <span class="required">*</span></label>
+        <input 
+          type="date" 
+          id="date_reported" 
+          name="date_reported" 
+          class="form-control" 
+          value="{{ crime.date_reported.strftime('%Y-%m-%d') if crime.date_reported else '' }}"
+          required
+        >
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="description" class="form-label">Comprehensive Incident Description</label>
+      <textarea 
+        id="description" 
+        name="description" 
+        class="form-control" 
+        rows="4"
+      >{{ crime.description }}</textarea>
+    </div>
+
+    <!-- Section 2: Case Officer & Status -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin: 1.5rem 0 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      2. Department Assignment &amp; Case Status
+    </h3>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="investigating_officer" class="form-label">Investigating Officer <span class="required">*</span></label>
+        <input 
+          type="text" 
+          id="investigating_officer" 
+          name="investigating_officer" 
+          class="form-control" 
+          value="{{ crime.investigating_officer }}"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="case_status" class="form-label">Current Case Status <span class="required">*</span></label>
+        <select id="case_status" name="case_status" class="form-select" required>
+          {% for cstatus in case_statuses %}
+            <option value="{{ cstatus }}" {% if crime.case_status == cstatus %}selected{% endif %}>
+              {{ cstatus }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Section 3: Persons of Interest & Victims -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin: 1.5rem 0 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      3. Associated Persons
+    </h3>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="victim_details" class="form-label">Complainant / Victim Information</label>
+        <textarea 
+          id="victim_details" 
+          name="victim_details" 
+          class="form-control" 
+          rows="3"
+        >{{ crime.victim_details }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="suspect_details" class="form-label">Suspect Details &amp; Identifiers</label>
+        <textarea 
+          id="suspect_details" 
+          name="suspect_details" 
+          class="form-control" 
+          rows="3"
+        >{{ crime.suspect_details }}</textarea>
+      </div>
+    </div>
+
+    <!-- Section 4: Investigation Notes -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin: 1.5rem 0 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      4. Investigative Logs &amp; Progress Notes
+    </h3>
+
+    <div class="form-group">
+      <label for="investigation_notes" class="form-label">Investigation Progress Log</label>
+      <textarea 
+        id="investigation_notes" 
+        name="investigation_notes" 
+        class="form-control" 
+        rows="4"
+      >{{ crime.investigation_notes }}</textarea>
+    </div>
+
+    <!-- Submit buttons -->
+    <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 2rem; border-top: 1px solid var(--slate-200); padding-top: 1.25rem;">
+      <a href="{{ url_for('crime_details', crime_id=crime._id) }}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary" id="btn-submit-edit">Update Crime Record</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
