@@ -45,6 +45,11 @@ def process_evidence_image_for_db(file_storage):
 
 def generate_sample_evidence_b64(case_title, case_number, category):
     """Generate professional forensic evidence banner encoded in Base64 for MongoDB seeding."""
+    import html
+    safe_title = html.escape(case_title[:55])
+    safe_case_no = html.escape(case_number)
+    safe_cat = html.escape(category)
+
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="100%" height="100%">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -65,16 +70,16 @@ def generate_sample_evidence_b64(case_title, case_number, category):
   <rect x="45" y="45" width="280" height="34" rx="4" fill="#0369a1"/>
   <text x="55" y="68" fill="#ffffff" font-family="monospace, sans-serif" font-size="13" font-weight="bold">POLICE FORENSIC EVIDENCE LOG</text>
   <text x="45" y="130" fill="#94a3b8" font-family="sans-serif" font-size="14" font-weight="bold">CASE IDENTIFIER:</text>
-  <text x="45" y="165" fill="#38bdf8" font-family="monospace, sans-serif" font-size="28" font-weight="bold">{case_number}</text>
+  <text x="45" y="165" fill="#38bdf8" font-family="monospace, sans-serif" font-size="28" font-weight="bold">{safe_case_no}</text>
   <text x="45" y="210" fill="#94a3b8" font-family="sans-serif" font-size="14" font-weight="bold">INCIDENT CLASSIFICATION:</text>
-  <text x="45" y="238" fill="#f8fafc" font-family="sans-serif" font-size="20">{category}</text>
+  <text x="45" y="238" fill="#f8fafc" font-family="sans-serif" font-size="20">{safe_cat}</text>
   <text x="45" y="280" fill="#94a3b8" font-family="sans-serif" font-size="14" font-weight="bold">INCIDENT TITLE:</text>
-  <text x="45" y="308" fill="#f8fafc" font-family="sans-serif" font-size="16">{case_title[:55]}</text>
+  <text x="45" y="308" fill="#f8fafc" font-family="sans-serif" font-size="16">{safe_title}</text>
   <circle cx="640" cy="240" r="85" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="6,4" opacity="0.85"/>
   <text x="640" y="235" fill="#ef4444" font-family="monospace, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" opacity="0.9">EVIDENCE SECURED</text>
   <text x="640" y="255" fill="#ef4444" font-family="monospace, sans-serif" font-size="11" text-anchor="middle" opacity="0.8">CHAIN OF CUSTODY</text>
   <rect x="45" y="395" width="710" height="40" fill="#0f172a" stroke="#334155" stroke-width="1" rx="4"/>
-  <text x="60" y="420" fill="#38bdf8" font-family="monospace, sans-serif" font-size="12">RECORD STORED IN MONGODB &bull; MIME: image/svg+xml &bull; VERIFIED DATABASE ASSET</text>
+  <text x="60" y="420" fill="#38bdf8" font-family="monospace, sans-serif" font-size="12">RECORD STORED IN MONGODB &#8226; MIME: image/svg+xml &#8226; VERIFIED DATABASE ASSET</text>
 </svg>'''
     return base64.b64encode(svg.encode("utf-8")).decode("utf-8")
 
