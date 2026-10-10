@@ -66,14 +66,24 @@ In traditional and manual law enforcement workflows, incident reports and First 
    - **Read:** Formatted case file view with printable layout, timestamp audits, and fictional party statements.
    - **Update:** Modify investigative logs, case status, suspect leads while maintaining immutable case numbers.
    - **Delete:** Protected admin-only deletion with confirmation safeguards.
-4. **Advanced Multi-Criteria Search & Filter:**
+4. **Database-Stored Digital Evidence & Multimedia Streaming:**
+   - Crime scene photographs and forensic documents are stored directly within MongoDB documents (`evidence_image_data`, `evidence_image_mimetype`, `evidence_image_filename`).
+   - Dynamic asset streaming endpoint (`/crimes/<id>/photo`) queries MongoDB directly and streams decoded binary bytes to client browsers.
+   - Interactive evidence thumbnails in the crime repository table and full-resolution case dossier viewer.
+   - Real-time client-side image preview with file size and format validation prior to submission.
+   - Full lifecycle management (replace, remove, or delete evidence directly in MongoDB).
+5. **GPS Geolocation & Incident Mapping:**
+   - One-click "Detect My Location" button leveraging the browser's HTML5 Geolocation API.
+   - Automated reverse-geocoding via OpenStreetMap Nominatim with fallback to high-precision latitude/longitude.
+   - Direct "View Map" external navigation button to pinpoint incident scenes on interactive maps.
+6. **Advanced Multi-Criteria Search & Filter:**
    - General keyword query across title, description, and officer.
    - Offense category filtering.
    - Case status pipeline filtering.
    - Location substring search.
    - Specific case number matching.
    - Date range filter (`from` and `to` on reported dates).
-5. **Real-time Analytical Dashboard:**
+7. **Real-time Analytical Dashboard:**
    - Summary stat cards: Total Cases, Reported, Active Investigations, Closed, Unsolved.
    - Category distribution with percentage bars.
    - Status pipeline breakdown.
@@ -368,13 +378,13 @@ The test suite systematically verifies:
 
 ## 21. Limitations
 - Designed strictly as a single-server monolithic academic application; does not include distributed message brokers or WebSockets.
-- File attachment storage (e.g., actual high-resolution ballistics PDF reports or multi-gigabyte video evidence) is stored textually/metadata-based rather than in cloud object storage (S3/GridFS).
+- File attachment storage supports local server image uploads (PNG, JPG, WEBP); multi-gigabyte video evidence (e.g. CCTV streams) is designed for external cloud object storage (S3/GridFS) in production environments.
 - Email notifications for case status changes are not configured by default to keep external network dependencies zero.
 
 ---
 
 ## 22. Future Enhancements
-- Integration of MongoDB GridFS for binary digital evidence file attachments (audio logs, CCTV clips).
+- Integration of MongoDB GridFS and video streaming pipelines for multi-gigabyte CCTV footage and audio recordings.
 - Automated PDF case dossier generator using Python standard libraries.
-- Geographic coordinate mapping using Leaflet and GeoJSON MongoDB spatial queries.
+- Embedded interactive Leaflet.js canvas with GeoJSON spatial radius filters.
 - Biometric authentication integration simulation for high-clearance investigations.

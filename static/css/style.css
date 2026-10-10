@@ -1020,3 +1020,30 @@ body {
     font-size: 1.8rem;
   }
 }
+
+/* Keyframe animations & Evidence Photo enhancements */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.evidence-preview-container {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.evidence-preview-container:hover {
+  box-shadow: var(--shadow-md);
+}
+
+#btn-detect-location:hover {
+  background-color: var(--slate-200);
+  border-color: var(--slate-400);
+}
+
+#btn-detect-location:active {
+  transform: translateY(1px);
+}

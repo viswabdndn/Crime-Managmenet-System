@@ -19,6 +19,11 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
 
+    # File uploads configuration
+    UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "uploads", "evidence")
+    ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif"}
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16 MB max upload
+
 
 _mongo_client = None
 
@@ -32,8 +37,8 @@ def get_db_client():
     if _mongo_client is None:
         _mongo_client = MongoClient(
             Config.MONGO_URI,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000,
+            serverSelectionTimeoutMS=15000,
+            connectTimeoutMS=15000,
             maxPoolSize=50
         )
     return _mongo_client

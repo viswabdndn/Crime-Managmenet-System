@@ -1,7 +1,8 @@
 import os
 import sys
+import base64
 from datetime import datetime, date, timezone
-from flask import Flask, render_template, request, redirect, url_for, flash, session, g, abort
+from flask import Flask, render_template, request, redirect, url_for, flash, session, g, abort, send_file, Response
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError, DuplicateKeyError
 from werkzeug.exceptions import HTTPException
 
@@ -27,6 +28,7 @@ from models.crime_model import (
     get_dashboard_stats,
     seed_sample_crimes,
     init_crime_indexes,
+    ensure_demo_evidence_photos,
     ALLOWED_CRIME_TYPES,
     ALLOWED_CASE_STATUSES
 )
@@ -39,12 +41,18 @@ from utils.helpers import (
     parse_object_id,
     validate_email,
     format_datetime,
-    format_date
+    format_date,
+    save_evidence_image,
+    delete_evidence_image,
+    process_evidence_image_for_db
 )
 
 # Initialize Flask application
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Ensure upload directory exists
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
 # Register custom Jinja2 template filters
 app.jinja_env.filters["format_datetime"] = format_datetime
@@ -244,20 +252,35 @@ def view_crimes():
 @login_required
 @officer_required
 def add_crime():
-    """Create and save a new crime record."""
+    """Create and save a new crime record with photographic evidence stored in MongoDB."""
     db = get_current_db()
     if request.method == "POST":
+        evidence_filename = None
+        b64_data, img_mimetype, orig_filename = None, None, None
         try:
+            image_file = request.files.get("evidence_image")
+            if image_file and image_file.filename:
+                b64_data, img_mimetype, orig_filename = process_evidence_image_for_db(image_file)
+                evidence_filename = save_evidence_image(image_file, app.config["UPLOAD_FOLDER"])
+
             created_crime = create_crime(
                 db,
                 form_data=request.form,
-                created_by_id=session.get("user_id")
+                created_by_id=session.get("user_id"),
+                evidence_image=evidence_filename,
+                evidence_image_data=b64_data,
+                evidence_image_mimetype=img_mimetype,
+                evidence_image_filename=orig_filename
             )
             flash(f"Crime record {created_crime['case_number']} added successfully.", "success")
             return redirect(url_for("crime_details", crime_id=created_crime["_id"]))
         except ValueError as e:
+            if evidence_filename:
+                delete_evidence_image(evidence_filename, app.config["UPLOAD_FOLDER"])
             flash(str(e), "danger")
         except Exception as e:
+            if evidence_filename:
+                delete_evidence_image(evidence_filename, app.config["UPLOAD_FOLDER"])
             app.logger.error(f"Error creating crime record: {e}")
             flash("Failed to save crime record due to a server error.", "danger")
 
@@ -277,11 +300,43 @@ def crime_details(crime_id):
     return render_template("crime_details.html", crime=crime)
 
 
+@app.route("/crimes/<crime_id>/photo")
+def crime_photo(crime_id):
+    """
+    Fetch and stream evidence image directly from the MongoDB database document.
+    Demonstrates pure database retrieval of digital multimedia assets.
+    """
+    db = get_current_db()
+    crime = get_crime_by_id(db, crime_id)
+    if not crime:
+        abort(404)
+
+    # 1. Direct fetch from MongoDB document Base64 binary payload
+    if crime.get("evidence_image_data"):
+        try:
+            image_bytes = base64.b64decode(crime["evidence_image_data"])
+            mimetype = crime.get("evidence_image_mimetype", "image/jpeg")
+            filename = crime.get("evidence_image_filename", "evidence_document")
+            response = Response(image_bytes, mimetype=mimetype)
+            response.headers["Content-Disposition"] = f"inline; filename={filename}"
+            return response
+        except Exception as e:
+            app.logger.error(f"Error serving image from database for crime {crime_id}: {e}")
+
+    # 2. Fallback to filesystem upload folder if saved
+    if crime.get("evidence_image"):
+        upload_path = os.path.join(app.config["UPLOAD_FOLDER"], crime["evidence_image"])
+        if os.path.exists(upload_path):
+            return send_file(upload_path)
+
+    abort(404)
+
+
 @app.route("/crimes/edit/<crime_id>", methods=["GET", "POST"])
 @login_required
 @officer_required
 def edit_crime(crime_id):
-    """Edit existing crime record while preserving case number and created timestamp."""
+    """Edit existing crime record while preserving case number and handling photo updates."""
     db = get_current_db()
     crime = get_crime_by_id(db, crime_id)
     if not crime:
@@ -289,13 +344,40 @@ def edit_crime(crime_id):
         return redirect(url_for("view_crimes"))
 
     if request.method == "POST":
+        new_evidence_filename = None
+        b64_data, img_mimetype, orig_filename = None, None, None
+        remove_image = bool(request.form.get("remove_evidence_image"))
         try:
-            update_crime(db, crime_id, request.form)
+            image_file = request.files.get("evidence_image")
+            if image_file and image_file.filename:
+                b64_data, img_mimetype, orig_filename = process_evidence_image_for_db(image_file)
+                new_evidence_filename = save_evidence_image(image_file, app.config["UPLOAD_FOLDER"])
+                # Delete replaced previous image
+                if crime.get("evidence_image"):
+                    delete_evidence_image(crime["evidence_image"], app.config["UPLOAD_FOLDER"])
+            elif remove_image:
+                if crime.get("evidence_image"):
+                    delete_evidence_image(crime["evidence_image"], app.config["UPLOAD_FOLDER"])
+
+            update_crime(
+                db,
+                crime_id,
+                request.form,
+                evidence_image=new_evidence_filename,
+                evidence_image_data=b64_data if (image_file and image_file.filename) else None,
+                evidence_image_mimetype=img_mimetype if (image_file and image_file.filename) else None,
+                evidence_image_filename=orig_filename if (image_file and image_file.filename) else None,
+                remove_image=remove_image
+            )
             flash(f"Crime record {crime.get('case_number')} updated successfully.", "success")
             return redirect(url_for("crime_details", crime_id=crime_id))
         except ValueError as e:
+            if new_evidence_filename:
+                delete_evidence_image(new_evidence_filename, app.config["UPLOAD_FOLDER"])
             flash(str(e), "danger")
         except Exception as e:
+            if new_evidence_filename:
+                delete_evidence_image(new_evidence_filename, app.config["UPLOAD_FOLDER"])
             app.logger.error(f"Error updating crime record {crime_id}: {e}")
             flash("Failed to update record due to an unexpected error.", "danger")
 
@@ -306,9 +388,12 @@ def edit_crime(crime_id):
 @login_required
 @admin_required
 def delete_crime(crime_id):
-    """Permanently delete a crime record (restricted strictly to Admins)."""
+    """Permanently delete a crime record and associated evidence files (restricted strictly to Admins)."""
     db = get_current_db()
     try:
+        crime = get_crime_by_id(db, crime_id)
+        if crime and crime.get("evidence_image"):
+            delete_evidence_image(crime["evidence_image"], app.config["UPLOAD_FOLDER"])
         db_delete_crime(db, crime_id)
         flash("Crime record deleted successfully.", "success")
     except ValueError as e:
@@ -505,12 +590,13 @@ def seed_data_command():
 # ============================================================================
 
 def setup_database_indexes():
-    """Ensure required indexes are registered when starting up."""
+    """Ensure required indexes are registered and demo evidence photos are loaded in MongoDB."""
     try:
         db = get_db()
         init_user_indexes(db)
         init_crime_indexes(db)
-        print("[CRMS] Connected to MongoDB and verified indexes on collections 'users' and 'crimes'.")
+        ensure_demo_evidence_photos(db)
+        print("[CRMS] Connected to MongoDB and verified indexes & database evidence photos.")
     except Exception as e:
         print(f"[CRMS WARNING] Could not verify MongoDB indexes at startup: {e}", file=sys.stderr)
 

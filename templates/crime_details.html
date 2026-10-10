@@ -59,7 +59,21 @@
   <div class="dossier-meta-grid">
     <div class="meta-item">
       <span class="meta-label">Incident Location</span>
-      <span class="meta-value">{{ crime.location }}</span>
+      <span class="meta-value" style="display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+        <span>{{ crime.location }}</span>
+        {% if crime.location %}
+          <a 
+            href="https://www.google.com/maps/search/?api=1&query={{ crime.location | urlencode }}" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="btn btn-secondary btn-sm"
+            style="padding: 0.15rem 0.5rem; font-size: 0.72rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.25rem;"
+            title="Open incident location in Google Maps"
+          >
+            &#128506;&#65039; View Map
+          </a>
+        {% endif %}
+      </span>
     </div>
     <div class="meta-item">
       <span class="meta-label">Date of Incident</span>
@@ -107,6 +121,66 @@
       <div class="dossier-text-box">
         {{ crime.investigation_notes if crime.investigation_notes else 'No investigative progress notes added.' }}
       </div>
+    </div>
+
+    <!-- Digital Photographic Evidence Section -->
+    <div class="dossier-section">
+      <h3 class="dossier-section-title">&#128247; Crime Scene Photographic Evidence</h3>
+      {% if crime.evidence_image_data or crime.evidence_image %}
+        <div style="background: var(--slate-50); border: 1px solid var(--slate-200); border-radius: var(--border-radius-sm); padding: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; align-items: flex-start;">
+          <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+            <span style="font-size: 0.85rem; font-weight: 600; color: var(--navy-800); display: inline-flex; align-items: center; gap: 0.4rem;">
+              <span style="background: #0284c7; color: #fff; font-size: 0.72rem; padding: 0.2rem 0.55rem; border-radius: 4px; font-weight: 700; letter-spacing: 0.03em;">FETCHED FROM MONGODB DATABASE</span>
+              Attached Case Evidence
+            </span>
+            <div style="display: flex; gap: 0.5rem;">
+              <a 
+                href="{{ url_for('crime_photo', crime_id=crime._id) }}" 
+                target="_blank" 
+                class="btn btn-secondary btn-sm"
+                style="padding: 0.25rem 0.6rem; font-size: 0.75rem;"
+              >
+                &#128269; View Full Resolution
+              </a>
+              <a 
+                href="{{ url_for('crime_photo', crime_id=crime._id) }}" 
+                download="{{ crime.evidence_image_filename or 'crime_evidence' }}"
+                class="btn btn-secondary btn-sm"
+                style="padding: 0.25rem 0.6rem; font-size: 0.75rem;"
+              >
+                &#128190; Download
+              </a>
+            </div>
+          </div>
+          <div style="max-width: 100%; overflow: hidden; border-radius: 6px; border: 1px solid var(--slate-300); background: #0b0f19;">
+            <a href="{{ url_for('crime_photo', crime_id=crime._id) }}" target="_blank" title="Click to view full image streamed directly from database">
+              <img 
+                src="{{ url_for('crime_photo', crime_id=crime._id) }}" 
+                alt="Crime Scene Photographic Evidence (Fetched from Database)"
+                style="max-width: 100%; max-height: 480px; object-fit: contain; display: block;"
+              >
+            </a>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--slate-500); display: flex; gap: 1rem; flex-wrap: wrap;">
+            <span>Asset source: <strong>MongoDB Document BSON</strong></span>
+            {% if crime.evidence_image_mimetype %}
+              <span>Format: <code>{{ crime.evidence_image_mimetype }}</code></span>
+            {% endif %}
+            {% if crime.evidence_image_filename %}
+              <span>Filename: <code>{{ crime.evidence_image_filename }}</code></span>
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="dossier-text-box" style="color: var(--slate-500); font-style: italic; background: var(--slate-50);">
+          No digital photographic evidence attached to this case file in database.
+          {% if session.get('role') in ['Admin', 'Officer'] %}
+            <a href="{{ url_for('edit_crime', crime_id=crime._id) }}" style="color: var(--navy-700); font-weight: 500; text-decoration: underline; margin-left: 0.5rem;">
+              Attach Crime Scene Photo
+            </a>
+          {% endif %}
+        </div>
+      {% endif %}
     </div>
 
     <!-- Record Metadata Footer -->

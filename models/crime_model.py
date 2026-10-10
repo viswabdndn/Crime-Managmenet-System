@@ -1,6 +1,6 @@
 import re
 from datetime import datetime, timezone
-from utils.helpers import parse_object_id, generate_case_number
+from utils.helpers import parse_object_id, generate_case_number, generate_sample_evidence_b64
 
 ALLOWED_CRIME_TYPES = [
     "Theft",
@@ -82,9 +82,10 @@ def parse_date_input(val):
         return datetime.now(timezone.utc)
 
 
-def create_crime(db, form_data, created_by_id):
+def create_crime(db, form_data, created_by_id, evidence_image=None, evidence_image_data=None, evidence_image_mimetype=None, evidence_image_filename=None):
     """
     Validate, assign unique case number, and insert new crime record.
+    Stores evidence photo Base64 directly into MongoDB document.
     """
     validate_crime_payload(form_data)
     
@@ -107,6 +108,10 @@ def create_crime(db, form_data, created_by_id):
         "investigating_officer": form_data.get("investigating_officer", "").strip(),
         "investigation_notes": form_data.get("investigation_notes", "").strip(),
         "case_status": form_data.get("case_status", "Reported").strip(),
+        "evidence_image": evidence_image or None,
+        "evidence_image_data": evidence_image_data or None,
+        "evidence_image_mimetype": evidence_image_mimetype or None,
+        "evidence_image_filename": evidence_image_filename or None,
         "created_by": str(created_by_id) if created_by_id else None,
         "created_at": now,
         "updated_at": now
@@ -132,10 +137,11 @@ def get_crime_by_case_number(db, case_number):
     return db.crimes.find_one({"case_number": case_number.strip()})
 
 
-def update_crime(db, crime_id, form_data):
+def update_crime(db, crime_id, form_data, evidence_image=None, evidence_image_data=None, evidence_image_mimetype=None, evidence_image_filename=None, remove_image=False):
     """
     Update an existing crime record.
     Preserves original case number and created_at.
+    Handles optional new evidence image upload or removal stored in MongoDB.
     """
     oid = parse_object_id(str(crime_id))
     if not oid:
@@ -160,6 +166,19 @@ def update_crime(db, crime_id, form_data):
         "case_status": form_data.get("case_status", "").strip(),
         "updated_at": datetime.now(timezone.utc)
     }
+
+    if remove_image:
+        update_doc["evidence_image"] = None
+        update_doc["evidence_image_data"] = None
+        update_doc["evidence_image_mimetype"] = None
+        update_doc["evidence_image_filename"] = None
+    elif evidence_image_data:
+        update_doc["evidence_image"] = evidence_image
+        update_doc["evidence_image_data"] = evidence_image_data
+        update_doc["evidence_image_mimetype"] = evidence_image_mimetype
+        update_doc["evidence_image_filename"] = evidence_image_filename
+    elif evidence_image:
+        update_doc["evidence_image"] = evidence_image
     
     result = db.crimes.update_one({"_id": oid}, {"$set": update_doc})
     if result.matched_count == 0:
@@ -396,7 +415,44 @@ def seed_sample_crimes(db, creator_id=None):
     
     seeded_cases = []
     for record in sample_records:
-        created = create_crime(db, record, created_by_id=creator_id)
+        dummy_case_no = generate_case_number(db)
+        b64_image = generate_sample_evidence_b64(record["title"], dummy_case_no, record["crime_type"])
+        created = create_crime(
+            db, 
+            record, 
+            created_by_id=creator_id,
+            evidence_image=f"evidence_{record['crime_type'].lower()}_log.svg",
+            evidence_image_data=b64_image,
+            evidence_image_mimetype="image/svg+xml",
+            evidence_image_filename=f"evidence_{record['crime_type'].lower()}_log.svg"
+        )
         seeded_cases.append(created["case_number"])
         
     return seeded_cases
+
+
+def ensure_demo_evidence_photos(db):
+    """
+    Ensure all existing demonstration crimes have forensic evidence images
+    stored directly in the MongoDB database document.
+    """
+    crimes_without_photo = list(db.crimes.find({
+        "$or": [
+            {"evidence_image_data": None},
+            {"evidence_image_data": {"$exists": False}}
+        ]
+    }))
+    for crime in crimes_without_photo:
+        b64_img = generate_sample_evidence_b64(
+            crime.get("title", "Forensic Record"), 
+            crime.get("case_number", "CRM-RECORD"), 
+            crime.get("crime_type", "General")
+        )
+        db.crimes.update_one(
+            {"_id": crime["_id"]},
+            {"$set": {
+                "evidence_image_data": b64_img,
+                "evidence_image_mimetype": "image/svg+xml",
+                "evidence_image_filename": f"evidence_{crime.get('case_number', 'record').lower()}_verified.svg"
+            }}
+        )

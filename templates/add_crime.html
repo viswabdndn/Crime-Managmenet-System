@@ -12,7 +12,7 @@
     <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary btn-sm">&larr; Back to Records</a>
   </div>
 
-  <form action="{{ url_for('add_crime') }}" method="POST" id="form-add-crime">
+  <form action="{{ url_for('add_crime') }}" method="POST" id="form-add-crime" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
     <!-- Section 1: Incident Specifics -->
@@ -47,16 +47,30 @@
       </div>
 
       <div class="form-group">
-        <label for="location" class="form-label">Incident Location <span class="required">*</span></label>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+          <label for="location" class="form-label" style="margin-bottom: 0;">Incident Location <span class="required">*</span></label>
+          <button 
+            type="button" 
+            id="btn-detect-location" 
+            class="btn btn-secondary btn-sm" 
+            style="padding: 0.2rem 0.6rem; font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer;"
+            title="Fetch live device GPS coordinates"
+          >
+            <span id="loc-spinner" style="display: none; animation: spin 1s linear infinite;">&#9696;</span>
+            <span id="loc-icon">&#128205;</span>
+            <span id="loc-text">Detect My Location</span>
+          </button>
+        </div>
         <input 
           type="text" 
           id="location" 
           name="location" 
           class="form-control" 
-          placeholder="Specific street address, campus block, or landmark" 
+          placeholder="Specific street address, campus block, or GPS coordinates" 
           value="{{ request.form.get('location', '') }}"
           required
         >
+        <div id="location-feedback" class="form-text" style="font-size: 0.78rem; margin-top: 0.3rem;"></div>
       </div>
     </div>
 
@@ -174,6 +188,35 @@
       >{{ request.form.get('investigation_notes', '') }}</textarea>
     </div>
 
+    <!-- Section 5: Photographic Evidence -->
+    <h3 style="font-size: 1.05rem; color: var(--navy-800); margin: 1.5rem 0 1rem; border-bottom: 1px solid var(--slate-200); padding-bottom: 0.4rem;">
+      5. Digital Photographic Evidence (Crime Scene / Evidence Capture)
+    </h3>
+
+    <div class="form-group">
+      <label for="evidence_image" class="form-label">Upload Crime Scene Photo or Evidence Document</label>
+      <input 
+        type="file" 
+        id="evidence_image" 
+        name="evidence_image" 
+        class="form-control" 
+        accept="image/png, image/jpeg, image/jpg, image/webp, image/gif"
+      >
+      <div class="form-text" style="margin-top: 0.35rem;">
+        Accepted formats: PNG, JPG, JPEG, WEBP, GIF (Max size: 16 MB). Evidence will be linked directly to this case file.
+      </div>
+
+      <!-- Live Client-side Image Preview -->
+      <div id="image-preview-wrapper" style="display: none; margin-top: 1rem; padding: 0.85rem; border: 1px solid var(--slate-300); border-radius: var(--border-radius-sm); background: var(--slate-50); max-width: 440px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+          <span style="font-size: 0.82rem; font-weight: 600; color: var(--slate-800);">&#128247; Selected Evidence Preview</span>
+          <button type="button" id="btn-clear-preview" class="btn btn-secondary btn-sm" style="padding: 0.15rem 0.45rem; font-size: 0.72rem;">Remove</button>
+        </div>
+        <img id="evidence-preview-img" src="" alt="Crime scene evidence preview" style="max-width: 100%; max-height: 250px; border-radius: 4px; object-fit: contain; display: block; border: 1px solid var(--slate-300); background: #111;">
+        <div id="image-file-info" style="font-size: 0.75rem; color: var(--slate-600); margin-top: 0.4rem;"></div>
+      </div>
+    </div>
+
     <!-- Submit buttons -->
     <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 2rem; border-top: 1px solid var(--slate-200); padding-top: 1.25rem;">
       <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary" id="btn-cancel-add">Cancel</a>
@@ -181,4 +224,143 @@
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // ==========================================
+  // 1. GPS GEOLOCATION AUTO-DETECTION
+  // ==========================================
+  const btnDetect = document.getElementById("btn-detect-location");
+  const locInput = document.getElementById("location");
+  const locFeedback = document.getElementById("location-feedback");
+  const locSpinner = document.getElementById("loc-spinner");
+  const locIcon = document.getElementById("loc-icon");
+  const locText = document.getElementById("loc-text");
+
+  if (btnDetect && locInput) {
+    btnDetect.addEventListener("click", function() {
+      if (!navigator.geolocation) {
+        locFeedback.style.color = "var(--red-600)";
+        locFeedback.textContent = "Geolocation is not supported by your browser.";
+        return;
+      }
+
+      // Indicate loading
+      btnDetect.disabled = true;
+      if (locSpinner) locSpinner.style.display = "inline";
+      if (locIcon) locIcon.style.display = "none";
+      if (locText) locText.textContent = "Detecting GPS...";
+      locFeedback.style.color = "var(--slate-600)";
+      locFeedback.textContent = "Querying device satellite / network GPS...";
+
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const accuracy = Math.round(position.coords.accuracy);
+
+          // Try reverse geocoding via OpenStreetMap Nominatim
+          fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+            headers: { "Accept": "application/json" }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.display_name) {
+              locInput.value = `${data.display_name} (GPS: ${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+              locFeedback.style.color = "var(--green-600)";
+              locFeedback.textContent = `✓ GPS location & address verified (~${accuracy}m accuracy).`;
+            } else {
+              locInput.value = `GPS: ${lat.toFixed(6)}, ${lon.toFixed(6)} (~${accuracy}m accuracy)`;
+              locFeedback.style.color = "var(--green-600)";
+              locFeedback.textContent = "✓ GPS coordinates acquired successfully.";
+            }
+          })
+          .catch(() => {
+            // Fallback if offline or reverse lookup fails
+            locInput.value = `GPS: ${lat.toFixed(6)}, ${lon.toFixed(6)} (~${accuracy}m accuracy)`;
+            locFeedback.style.color = "var(--green-600)";
+            locFeedback.textContent = "✓ GPS coordinates acquired successfully.";
+          })
+          .finally(() => {
+            btnDetect.disabled = false;
+            if (locSpinner) locSpinner.style.display = "none";
+            if (locIcon) locIcon.style.display = "inline";
+            if (locText) locText.textContent = "Detect My Location";
+          });
+        },
+        function(err) {
+          btnDetect.disabled = false;
+          if (locSpinner) locSpinner.style.display = "none";
+          if (locIcon) locIcon.style.display = "inline";
+          if (locText) locText.textContent = "Detect My Location";
+
+          locFeedback.style.color = "var(--red-600)";
+          switch (err.code) {
+            case 1:
+              locFeedback.textContent = "Location permission denied. Please allow location access in your browser.";
+              break;
+            case 2:
+              locFeedback.textContent = "GPS position unavailable. Check your device location settings.";
+              break;
+            case 3:
+              locFeedback.textContent = "GPS request timed out. Please try again.";
+              break;
+            default:
+              locFeedback.textContent = "Unable to fetch location: " + err.message;
+          }
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
+    });
+  }
+
+  // ==========================================
+  // 2. CRIME SCENE IMAGE LIVE PREVIEW
+  // ==========================================
+  const imageInput = document.getElementById("evidence_image");
+  const previewWrapper = document.getElementById("image-preview-wrapper");
+  const previewImg = document.getElementById("evidence-preview-img");
+  const fileInfo = document.getElementById("image-file-info");
+  const btnClear = document.getElementById("btn-clear-preview");
+
+  if (imageInput) {
+    imageInput.addEventListener("change", function() {
+      const file = this.files && this.files[0];
+      if (!file) {
+        if (previewWrapper) previewWrapper.style.display = "none";
+        return;
+      }
+
+      // Check max size 16MB
+      if (file.size > 16 * 1024 * 1024) {
+        alert("The selected file exceeds 16 MB. Please select a smaller image.");
+        this.value = "";
+        if (previewWrapper) previewWrapper.style.display = "none";
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        if (previewImg) previewImg.src = e.target.result;
+        if (fileInfo) {
+          const sizeKb = (file.size / 1024).toFixed(1);
+          fileInfo.textContent = `File: ${file.name} | Size: ${sizeKb} KB | Type: ${file.type}`;
+        }
+        if (previewWrapper) previewWrapper.style.display = "block";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (btnClear) {
+      btnClear.addEventListener("click", function() {
+        imageInput.value = "";
+        if (previewWrapper) previewWrapper.style.display = "none";
+        if (previewImg) previewImg.src = "";
+      });
+    }
+  }
+});
+</script>
 {% endblock %}

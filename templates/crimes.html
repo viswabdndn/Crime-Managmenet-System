@@ -131,6 +131,7 @@
         <thead>
           <tr>
             <th>Case Number</th>
+            <th style="text-align: center;">Evidence Photo</th>
             <th>Crime Title</th>
             <th>Category</th>
             <th>Incident Location</th>
@@ -145,6 +146,19 @@
             <tr>
               <td>
                 <span class="case-id-badge">{{ crime.case_number }}</span>
+              </td>
+              <td style="text-align: center; width: 65px;">
+                {% if crime.evidence_image_data or crime.evidence_image %}
+                  <a href="{{ url_for('crime_photo', crime_id=crime._id) }}" target="_blank" title="View Evidence Photo stored in MongoDB">
+                    <img 
+                      src="{{ url_for('crime_photo', crime_id=crime._id) }}" 
+                      alt="Database Evidence" 
+                      style="width: 44px; height: 30px; object-fit: cover; border-radius: 4px; border: 1px solid var(--slate-300); display: block; margin: 0 auto; background: #0f172a;"
+                    >
+                  </a>
+                {% else %}
+                  <span style="color: var(--slate-400); font-size: 0.75rem;">—</span>
+                {% endif %}
               </td>
               <td>
                 <strong>{{ crime.title }}</strong>
