@@ -328,6 +328,46 @@ class CRMSComprehensiveTests(unittest.TestCase):
         self.assertEqual(del_res.status_code, 200)
         self.assertIsNone(self.db.crimes.find_one({"_id": ObjectId(crime_id)}))
 
+    def test_12_export_crimes_csv(self):
+        """Verify RFC 4180 CSV export of filtered crime records."""
+        # Log in first
+        res = self.client.get("/login")
+        token = self.get_csrf_token(res.data)
+        self.client.post("/login", data={
+            "csrf_token": token,
+            "email": "admin@crimerecord.local",
+            "password": "AdminPass123!"
+        }, follow_redirects=True)
+
+        # Request CSV export
+        export_res = self.client.get("/crimes/export/csv")
+        self.assertEqual(export_res.status_code, 200)
+        self.assertIn("text/csv", export_res.content_type)
+        self.assertIn("CRMS_Crime_Export_", export_res.headers.get("Content-Disposition", ""))
+        self.assertIn(b"Case Number,Title,Crime Type", export_res.data)
+
+    def test_13_export_crime_dossier_pdf(self):
+        """Verify standard PDF 1.4 police incident dossier export."""
+        # Log in first
+        res = self.client.get("/login")
+        token = self.get_csrf_token(res.data)
+        self.client.post("/login", data={
+            "csrf_token": token,
+            "email": "admin@crimerecord.local",
+            "password": "AdminPass123!"
+        }, follow_redirects=True)
+
+        crime = self.db.crimes.find_one()
+        self.assertIsNotNone(crime)
+        crime_id = str(crime["_id"])
+
+        pdf_res = self.client.get(f"/crimes/{crime_id}/pdf")
+        self.assertEqual(pdf_res.status_code, 200)
+        self.assertEqual(pdf_res.content_type, "application/pdf")
+        self.assertIn("Police_Dossier_", pdf_res.headers.get("Content-Disposition", ""))
+        self.assertTrue(pdf_res.data.startswith(b"%PDF-1.4"))
+        self.assertIn(b"%%EOF", pdf_res.data)
+
 
 if __name__ == "__main__":
     unittest.main()

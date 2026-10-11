@@ -44,7 +44,9 @@ from utils.helpers import (
     format_date,
     save_evidence_image,
     delete_evidence_image,
-    process_evidence_image_for_db
+    process_evidence_image_for_db,
+    export_crimes_to_csv,
+    generate_dossier_pdf
 )
 
 # Initialize Flask application
@@ -204,6 +206,7 @@ def logout():
     return redirect(url_for("login"))
 
 
+
 # ============================================================================
 # DASHBOARD ROUTE
 # ============================================================================
@@ -246,6 +249,28 @@ def view_crimes():
     )
 
     return render_template("crimes.html", crimes=crimes)
+
+
+@app.route("/crimes/export/csv")
+@login_required
+def export_crimes_csv():
+    """Export filtered crime records to an RFC 4180 CSV spreadsheet."""
+    db = get_current_db()
+    crimes = search_crimes(
+        db,
+        query=request.args.get("q"),
+        crime_type=request.args.get("crime_type"),
+        case_status=request.args.get("case_status"),
+        location=request.args.get("location"),
+        case_number=request.args.get("case_number"),
+        date_from=request.args.get("date_from"),
+        date_to=request.args.get("date_to")
+    )
+    csv_content = export_crimes_to_csv(crimes)
+    filename = f"CRMS_Crime_Export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    response = Response(csv_content, mimetype="text/csv; charset=utf-8")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
 
 
 @app.route("/crimes/add", methods=["GET", "POST"])
@@ -330,6 +355,24 @@ def crime_photo(crime_id):
             return send_file(upload_path)
 
     abort(404)
+
+
+@app.route("/crimes/<crime_id>/pdf")
+@login_required
+def export_crime_pdf(crime_id):
+    """Generate and download an official Police Incident Dossier in standard PDF format."""
+    db = get_current_db()
+    crime = get_crime_by_id(db, crime_id)
+    if not crime:
+        flash("The requested crime record does not exist or has an invalid identifier.", "danger")
+        return redirect(url_for("view_crimes"))
+
+    pdf_bytes = generate_dossier_pdf(crime)
+    safe_case = crime.get("case_number", "Dossier").replace(" ", "_")
+    filename = f"Police_Dossier_{safe_case}.pdf"
+    response = Response(pdf_bytes, mimetype="application/pdf")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
 
 
 @app.route("/crimes/edit/<crime_id>", methods=["GET", "POST"])

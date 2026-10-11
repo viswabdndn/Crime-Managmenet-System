@@ -241,3 +241,219 @@ def format_datetime(value, fmt="%b %d, %Y %I:%M %p"):
 def format_date(value, fmt="%b %d, %Y"):
     """Format date for Jinja2 template display."""
     return format_datetime(value, fmt=fmt)
+
+
+def export_crimes_to_csv(crimes):
+    """
+    Generate RFC 4180 compliant CSV string containing crime records.
+    """
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+    
+    # Standard CSV Header
+    writer.writerow([
+        "Case Number",
+        "Title",
+        "Crime Type",
+        "Case Status",
+        "Location",
+        "Date of Incident",
+        "Date Reported",
+        "Investigating Officer",
+        "Victim Details",
+        "Suspect Details",
+        "Investigation Notes",
+        "Created At",
+        "Updated At"
+    ])
+    
+    for c in crimes:
+        writer.writerow([
+            c.get("case_number", ""),
+            c.get("title", ""),
+            c.get("crime_type", ""),
+            c.get("case_status", ""),
+            c.get("location", ""),
+            format_date(c.get("date_of_incident")),
+            format_date(c.get("date_reported")),
+            c.get("investigating_officer", ""),
+            c.get("victim_details", ""),
+            c.get("suspect_details", ""),
+            c.get("investigation_notes", ""),
+            format_datetime(c.get("created_at")),
+            format_datetime(c.get("updated_at"))
+        ])
+        
+    return output.getvalue()
+
+
+def _pdf_escape(text):
+    """Sanitize strings for PDF 1.4 literal string inclusion."""
+    if not text:
+        return ""
+    safe = str(text).encode("latin1", errors="replace").decode("latin1")
+    return safe.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def generate_dossier_pdf(crime):
+    """
+    Generate an official, professional Police Incident Dossier (FIR Document)
+    in standard PDF 1.4 format using pure Python standard library.
+    """
+    import textwrap
+    stream_cmds = []
+    
+    # 1. Header Banner (#0f172a navy)
+    stream_cmds.append("0.06 0.09 0.16 rg")
+    stream_cmds.append("36 716 540 44 re f")
+    
+    # Header Title
+    stream_cmds.append("BT")
+    stream_cmds.append("/F1 15 Tf")
+    stream_cmds.append("1 1 1 rg")
+    stream_cmds.append("48 732 Td")
+    stream_cmds.append("(CRIME RECORD MANAGEMENT SYSTEM | POLICE DOSSIER) Tj")
+    stream_cmds.append("ET")
+    
+    # Subheader Bar (#0284c7 cyan/teal)
+    stream_cmds.append("0.01 0.52 0.78 rg")
+    stream_cmds.append("36 698 540 18 re f")
+    
+    stream_cmds.append("BT")
+    stream_cmds.append("/F1 9 Tf")
+    stream_cmds.append("1 1 1 rg")
+    stream_cmds.append("48 703 Td")
+    case_no = _pdf_escape(crime.get("case_number", "CRM-RECORD"))
+    status = _pdf_escape(crime.get("case_status", "Reported"))
+    category = _pdf_escape(crime.get("crime_type", "General"))
+    stream_cmds.append(f"(CASE IDENTIFIER: {case_no}   |   STATUS: {status}   |   CATEGORY: {category}) Tj")
+    stream_cmds.append("ET")
+    
+    # Outer page border
+    stream_cmds.append("0.8 0.85 0.9 RG")
+    stream_cmds.append("0.75 w")
+    stream_cmds.append("36 36 540 724 re S")
+    
+    # Metadata Grid Box
+    stream_cmds.append("0.96 0.97 0.98 rg")
+    stream_cmds.append("46 590 520 96 re f")
+    stream_cmds.append("0.85 0.88 0.92 RG")
+    stream_cmds.append("46 590 520 96 re S")
+    
+    meta_rows = [
+        ("Incident Title:", crime.get("title", "Untitled Case")),
+        ("Location:", crime.get("location", "Not specified")),
+        ("Date of Incident:", format_date(crime.get("date_of_incident"))),
+        ("Date Reported:", format_date(crime.get("date_reported"))),
+        ("Investigating Officer:", crime.get("investigating_officer", "Unassigned"))
+    ]
+    
+    curr_y = 668
+    for label, val in meta_rows:
+        stream_cmds.append("BT")
+        stream_cmds.append("/F1 9 Tf")
+        stream_cmds.append("0.3 0.35 0.42 rg")
+        stream_cmds.append(f"56 {curr_y} Td")
+        stream_cmds.append(f"({_pdf_escape(label)}) Tj")
+        stream_cmds.append("0.06 0.09 0.16 rg")
+        stream_cmds.append("120 0 Td")
+        stream_cmds.append(f"({_pdf_escape(val)[:65]}) Tj")
+        stream_cmds.append("ET")
+        curr_y -= 16
+        
+    # Content Sections
+    sections = [
+        ("INCIDENT NARRATIVE & DETAILS", crime.get("description", "No narrative filed.")),
+        ("COMPLAINANT / VICTIM INFORMATION", crime.get("victim_details", "None recorded.")),
+        ("SUSPECT IDENTIFIERS & CCTV DESCRIPTIONS", crime.get("suspect_details", "No suspects identified.")),
+        ("INVESTIGATION PROGRESS & EVIDENCE LOG", crime.get("investigation_notes", "No investigative progress notes filed."))
+    ]
+    
+    sec_y = 560
+    for sec_title, sec_content in sections:
+        # Section Header bar
+        stream_cmds.append("0.92 0.95 0.98 rg")
+        stream_cmds.append(f"46 {sec_y - 4} 520 16 re f")
+        
+        stream_cmds.append("BT")
+        stream_cmds.append("/F1 8.5 Tf")
+        stream_cmds.append("0.02 0.4 0.65 rg")
+        stream_cmds.append(f"52 {sec_y} Td")
+        stream_cmds.append(f"({_pdf_escape(sec_title)}) Tj")
+        stream_cmds.append("ET")
+        
+        sec_y -= 18
+        
+        lines = textwrap.wrap(str(sec_content or "N/A"), width=95)
+        if not lines:
+            lines = ["N/A"]
+            
+        for line in lines[:5]:
+            stream_cmds.append("BT")
+            stream_cmds.append("/F1 8 Tf")
+            stream_cmds.append("0.12 0.15 0.2 rg")
+            stream_cmds.append(f"54 {sec_y} Td")
+            stream_cmds.append(f"({_pdf_escape(line)}) Tj")
+            stream_cmds.append("ET")
+            sec_y -= 12
+            
+        sec_y -= 8
+        if sec_y < 120:
+            break
+            
+    # Footer Divider
+    stream_cmds.append("0.85 0.88 0.92 RG")
+    stream_cmds.append("0.5 w")
+    stream_cmds.append("46 80 520 0.5 re S")
+    
+    # Official Seal Stamp box
+    stream_cmds.append("0.95 0.97 1.0 rg")
+    stream_cmds.append("380 44 186 28 re f")
+    stream_cmds.append("0.02 0.4 0.65 RG")
+    stream_cmds.append("380 44 186 28 re S")
+    
+    stream_cmds.append("BT")
+    stream_cmds.append("/F1 7.5 Tf")
+    stream_cmds.append("0.02 0.4 0.65 rg")
+    stream_cmds.append("388 58 Td")
+    stream_cmds.append("(CRMS OFFICIAL RECORD - VERIFIED DIGITAL DOSSIER) Tj")
+    stream_cmds.append("0 -10 Td")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
+    stream_cmds.append(f"(Generated: {now_str}) Tj")
+    stream_cmds.append("ET")
+    
+    # Left footer notes
+    stream_cmds.append("BT")
+    stream_cmds.append("/F1 7.5 Tf")
+    stream_cmds.append("0.4 0.45 0.5 rg")
+    stream_cmds.append("48 62 Td")
+    stream_cmds.append("(Official computer-generated incident docket from Crime Record Management System.) Tj")
+    stream_cmds.append("0 -10 Td")
+    stream_cmds.append("(Digital evidence, timestamps, and audit trail preserved in MongoDB database.) Tj")
+    stream_cmds.append("ET")
+    
+    content_str = "\n".join(stream_cmds)
+    content_bytes = content_str.encode("latin1")
+    
+    objs = []
+    objs.append("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n")
+    objs.append("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n")
+    objs.append("3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>\nendobj\n")
+    objs.append(f"4 0 obj\n<< /Length {len(content_bytes)} >>\nstream\n{content_str}\nendstream\nendobj\n")
+    objs.append("5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n")
+    
+    header = "%PDF-1.4\n"
+    body = ""
+    xref = ["xref\n0 6\n0000000000 65535 f \n"]
+    offset = len(header)
+    for obj in objs:
+        xref.append(f"{offset:010d} 00000 n \n")
+        body += obj
+        offset += len(obj.encode("latin1"))
+        
+    xref_str = "".join(xref)
+    trailer = f"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n{offset}\n%%EOF\n"
+    return (header + body + xref_str + trailer).encode("latin1")
+

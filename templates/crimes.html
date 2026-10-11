@@ -111,10 +111,13 @@
       </div>
 
       <!-- Action Buttons -->
-      <div class="filter-actions" style="margin-top: auto;">
+      <div class="filter-actions" style="margin-top: auto; display: flex; gap: 0.4rem; flex-wrap: wrap;">
         <button type="submit" class="btn btn-navy" id="btn-apply-filters">
           Apply Filters
         </button>
+        <a href="{{ url_for('export_crimes_csv', **request.args) }}" class="btn btn-secondary" id="btn-export-csv" title="Download filtered records as CSV spreadsheet">
+          &#128196; Export CSV
+        </a>
         <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary" id="btn-clear-filters" title="Reset all filters">
           Clear
         </a>

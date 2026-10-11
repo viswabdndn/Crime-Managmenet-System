@@ -10,7 +10,10 @@
     <a href="{{ url_for('view_crimes') }}" class="btn btn-secondary btn-sm" id="btn-back-crimes">
       &larr; Back to Crime Repository
     </a>
-    <div style="display: flex; gap: 0.5rem;">
+    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+      <a href="{{ url_for('export_crime_pdf', crime_id=crime._id) }}" class="btn btn-navy btn-sm" id="btn-download-pdf" title="Download official police incident dossier as PDF">
+        &#128196; Download PDF Dossier
+      </a>
       <button onclick="window.print();" class="btn btn-secondary btn-sm" id="btn-print-case">
         &#128424; Print Case File
       </button>
@@ -183,6 +186,21 @@
       {% endif %}
     </div>
 
+    <!-- Interactive Geospatial Scene Mapping Section -->
+    <div class="dossier-section">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+        <h3 class="dossier-section-title" style="margin-bottom: 0;">&#128506;&#65039; Incident Scene Geospatial Pinpoint</h3>
+        <span id="map-status-pill" style="font-size: 0.72rem; padding: 0.2rem 0.55rem; background: var(--teal-50); color: var(--teal-800); border-radius: 4px; border: 1px solid var(--teal-200); font-weight: 600;">
+          OpenStreetMap &amp; Leaflet Engine
+        </span>
+      </div>
+      <div id="incident-scene-map" style="height: 320px; width: 100%; border-radius: var(--border-radius-sm); border: 1px solid var(--slate-300); background: #0f172a; position: relative;"></div>
+      <div style="font-size: 0.76rem; color: var(--slate-500); margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <span>Incident Location: <strong>{{ crime.location }}</strong></span>
+        <span id="map-coords-display" style="font-family: monospace; color: var(--teal-700);">Interactive Satellite/Road Map</span>
+      </div>
+    </div>
+
     <!-- Record Metadata Footer -->
     <div style="margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--slate-200); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; font-size: 0.8rem; color: var(--slate-500);">
       <div>
@@ -197,4 +215,72 @@
     </div>
   </div>
 </div>
+
+<!-- Leaflet.js Assets & Map Initialization -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const mapElement = document.getElementById("incident-scene-map");
+  if (!mapElement || typeof L === "undefined") return;
+
+  const rawLocation = {{ crime.location | tojson }};
+  const caseNumber = {{ crime.case_number | tojson }};
+  const crimeTitle = {{ crime.title | tojson }};
+
+  // Base coordinate fallback (default Kovilpatti / NEC area)
+  let lat = 9.1727;
+  let lon = 77.8712;
+  let zoomLevel = 15;
+  let parsedGps = false;
+
+  if (rawLocation) {
+    const gpsMatch = rawLocation.match(/GPS:\s*([0-9.-]+),\s*([0-9.-]+)/i) || rawLocation.match(/([0-9]{1,2}\.[0-9]+)[,\s]+([0-9]{1,3}\.[0-9]+)/);
+    if (gpsMatch) {
+      lat = parseFloat(gpsMatch[1]);
+      lon = parseFloat(gpsMatch[2]);
+      parsedGps = true;
+      zoomLevel = 17;
+    }
+  }
+
+  const map = L.map('incident-scene-map', {
+    center: [lat, lon],
+    zoom: zoomLevel,
+    scrollWheelZoom: false
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const marker = L.marker([lat, lon]).addTo(map);
+  marker.bindPopup(`<b>${caseNumber}</b><br>${crimeTitle}<br><small style="color:#555;">${rawLocation}</small>`).openPopup();
+
+  const coordsDisplay = document.getElementById("map-coords-display");
+  if (coordsDisplay) {
+    coordsDisplay.textContent = `Coordinates: ${lat.toFixed(5)}, ${lon.toFixed(5)} (Zoom: ${zoomLevel})`;
+  }
+
+  // Geocode via Nominatim if no GPS prefix is present
+  if (!parsedGps && rawLocation && rawLocation.length > 3) {
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(rawLocation)}`)
+      .then(r => r.json())
+      .then(results => {
+        if (results && results.length > 0) {
+          const newLat = parseFloat(results[0].lat);
+          const newLon = parseFloat(results[0].lon);
+          map.setView([newLat, newLon], 16);
+          marker.setLatLng([newLat, newLon]);
+          marker.bindPopup(`<b>${caseNumber}</b><br>${crimeTitle}<br><small style="color:#555;">${results[0].display_name}</small>`).openPopup();
+          if (coordsDisplay) {
+            coordsDisplay.textContent = `Geocoded: ${newLat.toFixed(5)}, ${newLon.toFixed(5)} via Nominatim`;
+          }
+        }
+      })
+      .catch(() => {});
+  }
+});
+</script>
 {% endblock %}
